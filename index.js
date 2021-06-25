@@ -2,8 +2,9 @@ const core = require('@actions/core')
 const aws = require('aws-sdk')
 const fs = require('fs')
 
-const outputPath = core.getInput('OUTPUT_PATH')
-const secretName = core.getInput('SECRET_NAME')
+const outputPath   = core.getInput('OUTPUT_PATH')
+const outputFormat = core.getInput('OUTPUT_FORMAT')
+const secretNames  = core.getInput('SECRET_NAMES')
 
 const secretsManager = new aws.SecretsManager({
   accessKeyId: core.getInput('AWS_ACCESS_KEY_ID'),
@@ -11,28 +12,36 @@ const secretsManager = new aws.SecretsManager({
   region: core.getInput('AWS_DEFAULT_REGION')
 })
 
-async function getSecretValue (secretsManager, secretName) {
-  return secretsManager.getSecretValue({ SecretId: secretName }).promise()
+async function getSecretValue (secretsManager, secretNames) {
+  var merged = {}
+  for (const secretName in secretNames) {
+    Object.assign(merged, secretsManager.getSecretValue({ SecretId: secretName }).SecretString)
+  }
+  return merged
 }
 
-getSecretValue(secretsManager, secretName).then(resp => {
-  const secretString = resp.SecretString
+getSecretValue(secretsManager, secretNames).then(resp => {
+  const secretString = resp
   core.setSecret(secretString)
 
   if (secretString == null) {
-    core.warning(`${secretName} has no secret values`)
+    core.warning(`${secretNames} has no secret values`)
     return
   }
 
   try {
     const parsedSecret = JSON.parse(secretString)
-    Object.entries(parsedSecret).forEach(([key, value]) => {
-      core.setSecret(value)
-      core.exportVariable(key, value)
-    })
+    // Object.entries(parsedSecret).forEach(([key, value]) => {
+    //   core.setSecret(value)
+    //   core.exportVariable(key, value)
+    // })
     if (outputPath) {
-      const secretsAsEnv = Object.entries(parsedSecret).map(([key, value]) => `${key}=${value}`).join('\n')
-      fs.writeFileSync(outputPath, secretsAsEnv)
+      if (outputFormat && outputFormat == 'JSON') {
+        fs.writeFileSync(outputPath, secretString)
+      } else {
+        const secretsAsEnv = Object.entries(parsedSecret).map(([key, value]) => `${key}=${value}`).join('\n')
+        fs.writeFileSync(outputPath, secretsAsEnv)
+      }
     }
   } catch (e) {
     core.warning('Parsing asm secret is failed. Secret will be store in asm_secret')

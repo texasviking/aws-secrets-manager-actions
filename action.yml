@@ -1,8 +1,8 @@
 name: 'aws-secrets-manager-actions'
 description: 'GitHub Actions for AWS Secrets Manager'
 inputs:
-  SECRET_NAME:
-    description: 'Set secret name that you want to get.'
+  SECRET_NAMES:
+    description: 'Array of secret names that you want to get.'
     required: true
   AWS_ACCESS_KEY_ID:
     description: 'Set Aws Access Key ID'
@@ -15,6 +15,9 @@ inputs:
     required: true
   OUTPUT_PATH:
     description: 'Set output file where variables are write'
+    required: false
+  OUTPUT_FORMAT:
+    description: 'KEYVALUE for .env format; JSON for .json format'
     required: false
 runs:
   using: 'node12'
